@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Comfortaa", cursive;
+  --font-body: "Quicksand", sans-serif;
+
+  --color-surface: #fcfaed;
+  --color-on-surface: #1b1c15;
+  --color-primary: #006780;
+  --color-primary-container: #4cc9f0;
+  --color-on-primary-container: #005266;
+  --color-secondary: #b5005d;
+  --color-secondary-container: #e20476;
+  --color-on-secondary-container: #fffbff;
+  --color-tertiary: #536500;
+  --color-tertiary-container: #a7c800;
+  --color-on-tertiary-container: #425000;
+  --color-surface-container: #f0eee1;
+  --color-surface-container-low: #f6f4e7;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Quicksand:wght@500;700&display=swap');
+
+body {
+  @apply bg-surface text-on-surface font-body;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.comfortaa {
+  font-family: var(--font-headline);
+}

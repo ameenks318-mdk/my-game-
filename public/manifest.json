@@ -1,0 +1,23 @@
+{
+  "name": "Serenity Spin",
+  "short_name": "Serenity",
+  "description": "Sensory Play Space for Calm & Focus",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#006780",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/a/default-user=s192-c",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/a/default-user=s512-c",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
