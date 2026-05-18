@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user progress, currency, and unlocks.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase UID" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "xp": { "type": "number", "description": "Experience points" },
+        "coins": { "type": "number", "description": "Currency for unlocks" },
+        "level": { "type": "number" },
+        "streak": { "type": "number", "description": "Current daily login streak" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "unlockedThemes": { "type": "array", "description": "IDs of unlocked visual themes" },
+        "achievements": { "type": "array", "description": "IDs of earned achievements" }
+      },
+      "required": ["userId", "xp", "coins", "level"]
+    },
+    "Achievement": {
+      "title": "Achievement Record",
+      "description": "Global definition of achievements.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "xpReward": { "type": "number" }
+      },
+      "required": ["id", "title", "description"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User specific data"
+    },
+    "leaderboard/{userId}": {
+      "schema": "User",
+      "description": "Public user stats for leaderboard"
+    }
+  }
+}
