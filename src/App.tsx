@@ -421,85 +421,265 @@ const SelectionScreen = ({ onSelect }: { onSelect: (id: string) => void }) => (
 );
 
 const TiltToy = () => {
-  const [marbles, setMarbles] = useState([
-    { id: 1, bg: 'bg-secondary-container', border: 'border-secondary', x: -40, y: -40 },
-    { id: 2, bg: 'bg-primary-container', border: 'border-primary', x: 50, y: 30 },
-    { id: 3, bg: 'bg-tertiary-fixed', border: 'border-tertiary-container', x: 20, y: 80 },
+  // Marble structure: { id, x, y, vx, vy, color, radius }
+  const MARBLE_RADIUS = 24;
+  const BOARD_RADIUS = 160; // Inner playing area radius
+
+  const [marbles, setMarbles] = useState<any[]>([
+    { id: 1, color: 'secondary', x: -40, y: -40, vx: 0, vy: 0 },
+    { id: 2, color: 'primary', x: 50, y: 30, vx: 0, vy: 0 },
+    { id: 3, color: 'tertiary', x: 20, y: 80, vx: 0, vy: 0 },
   ]);
 
+  const [settings, setSettings] = useState({
+    gravity: 0.4,
+    friction: 0.98,
+    airResistance: 0.995,
+    bounciness: 0.6,
+  });
+
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [showSettings, setShowSettings] = useState(false);
+  const tiltRef = React.useRef({ x: 0, y: 0 });
+
+  // Handle Device Orientation
+  React.useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      // Gamma is left/right (-90 to 90), Beta is front/back (-180 to 180)
+      if (e.gamma !== null && e.beta !== null) {
+        // Normalize to -1 to 1 range for gravity calculation
+        const tx = Math.max(-1, Math.min(1, e.gamma / 45));
+        const ty = Math.max(-1, Math.min(1, (e.beta - 45) / 45)); // Offset Beta for 45 deg holding angle
+        setTilt({ x: tx, y: ty });
+        tiltRef.current = { x: tx, y: ty };
+      }
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, []);
+
+  // Physics Loop
+  React.useEffect(() => {
+    let frame: number;
+    const update = () => {
+      setMarbles(prev => prev.map(m => {
+        let { x, y, vx, vy } = m;
+
+        // Apply Gravity based on Tilt
+        vx += tiltRef.current.x * settings.gravity;
+        vy += tiltRef.current.y * settings.gravity;
+
+        // Apply Air Resistance
+        vx *= settings.airResistance;
+        vy *= settings.airResistance;
+
+        // Apply Friction (Rolling)
+        vx *= settings.friction;
+        vy *= settings.friction;
+
+        // Update Position
+        x += vx;
+        y += vy;
+
+        // Wall Collision (Circular Boundary)
+        const dist = Math.sqrt(x * x + y * y);
+        const maxDist = BOARD_RADIUS - MARBLE_RADIUS;
+
+        if (dist > maxDist) {
+          // Normalize vector
+          const nx = x / dist;
+          const ny = y / dist;
+          
+          // Reposition to boundary
+          x = nx * maxDist;
+          y = ny * maxDist;
+
+          // Reflect velocity vector
+          // v_new = v - 2(v . n)n
+          const dot = vx * nx + vy * ny;
+          vx = (vx - 2 * dot * nx) * settings.bounciness;
+          vy = (vy - 2 * dot * ny) * settings.bounciness;
+
+          // Haptic feedback if impact is strong
+          const impact = Math.sqrt(vx * vx + vy * vy);
+          if (impact > 1) {
+             triggerVibration(Math.min(20, Math.ceil(impact * 5)));
+             // playSound('slide', 0.5 + impact / 10);
+          }
+        }
+
+        return { ...m, x, y, vx, vy };
+      }));
+      frame = requestAnimationFrame(update);
+    };
+
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [settings]);
+
   const addMarble = () => {
-    if (marbles.length >= 8) return;
+    if (marbles.length >= 10) return;
     playSound('click', 1.5);
-    const colors = [
-      { bg: 'bg-secondary-container', border: 'border-secondary' },
-      { bg: 'bg-primary-container', border: 'border-primary' },
-      { bg: 'bg-tertiary-fixed', border: 'border-tertiary-container' }
-    ];
+    const colors = ['secondary', 'primary', 'tertiary'];
     const randColor = colors[Math.floor(Math.random() * colors.length)];
     setMarbles([...marbles, { 
       id: Date.now(), 
-      ...randColor, 
-      x: (Math.random() - 0.5) * 100, 
-      y: (Math.random() - 0.5) * 100 
+      color: randColor, 
+      x: (Math.random() - 0.5) * 50, 
+      y: (Math.random() - 0.5) * 50,
+      vx: 0,
+      vy: 0
     }]);
   };
 
   const resetBoard = () => {
     playSound('pop', 0.5);
-    setMarbles(marbles.slice(0, 3).map(m => ({ ...m, x: (Math.random() - 0.5) * 50, y: (Math.random() - 0.5) * 50 })));
+    setMarbles(prev => prev.slice(0, 1).map(m => ({ ...m, x: 0, y: 0, vx: 0, vy: 0 })));
+  };
+
+  const handleSimulatedTilt = (e: React.MouseEvent | React.TouchEvent) => {
+    // If not mobile, allow simulating tilt by mouse position relative to center
+    if ('ontouchstart' in window) return;
+    
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const tx = (clientX - cx) / (rect.width / 2);
+    const ty = (clientY - cy) / (rect.height / 2);
+    
+    setTilt({ x: tx, y: ty });
+    tiltRef.current = { x: tx, y: ty };
+  };
+
+  const resetTilt = () => {
+    setTilt({ x: 0, y: 0 });
+    tiltRef.current = { x: 0, y: 0 };
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8 pb-32">
-      <div className="flex w-full max-w-sm gap-4 mb-4">
-        <div className="flex-1 bg-white border-4 border-primary rounded-2xl p-4 shadow-[4px_4px_0_0_#006780] flex flex-col items-center justify-center">
-          <CircleDot className="text-primary mb-1" />
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Gyroscope</span>
-          <span className="comfortaa text-xl text-primary font-bold">Active</span>
-        </div>
-        <div className="flex-1 bg-white border-4 border-secondary-container rounded-2xl p-4 shadow-[4px_4px_0_0_#e20476] flex flex-col items-center justify-center">
-          <Gamepad2 className="text-secondary-container mb-1" />
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Marbles</span>
-          <span className="comfortaa text-xl text-secondary-container font-bold">{marbles.length}</span>
-        </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 pb-32">
+       {/* Settings Modal Toggle */}
+       <div className="w-full max-w-sm flex justify-end">
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-3 rounded-2xl border-2 transition-all cursor-pointer ${showSettings ? 'bg-primary text-white border-primary shadow-lg' : 'bg-white border-slate-200 text-slate-500'}`}
+          >
+            <Sliders size={24} />
+          </button>
+       </div>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="w-full max-w-sm bg-white border-4 border-slate-100 p-6 rounded-3xl shadow-xl flex flex-col gap-6 absolute z-30"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="comfortaa text-lg font-bold text-slate-800">Physics Lab</h3>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+                 <LayoutGrid size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {[
+                { label: 'Gravity', key: 'gravity', min: 0, max: 2, step: 0.1 },
+                { label: 'Rolling Friction', key: 'friction', min: 0.8, max: 1, step: 0.01 },
+                { label: 'Air Resistance', key: 'airResistance', min: 0.9, max: 1, step: 0.005 },
+                { label: 'Bounciness', key: 'bounciness', min: 0.1, max: 0.9, step: 0.05 },
+              ].map(s => (
+                <div key={s.key} className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span>{s.label}</span>
+                    <span>{(settings as any)[s.key]}</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    step={s.step}
+                    value={(settings as any)[s.key]}
+                    onChange={(e) => setSettings(prev => ({ ...prev, [s.key]: parseFloat(e.target.value) }))}
+                    className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div 
+        className="relative perspective-1000"
+        onMouseMove={handleSimulatedTilt}
+        onMouseLeave={resetTilt}
+        onTouchMove={handleSimulatedTilt}
+        onTouchEnd={resetTilt}
+      >
+        <motion.div 
+          style={{ 
+            rotateX: tilt.y * -15, 
+            rotateY: tilt.x * 15,
+            transformStyle: 'preserve-3d'
+          }}
+          className="relative w-80 h-80 sm:w-96 sm:h-96 rounded-full shadow-[inset_0_10px_20px_rgba(0,0,0,0.1),20px_20px_40px_rgba(0,0,0,0.2),-10px_-10px_30px_#fff] border-8 border-surface-container-high bg-surface flex items-center justify-center overflow-hidden transition-transform duration-100 ease-out"
+        >
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+          
+          <div className="relative w-full h-full">
+            {marbles.map((m) => (
+              <div
+                key={m.id}
+                className={`absolute top-1/2 left-1/2 -ml-6 -mt-6 w-12 h-12 rounded-full border-2 shadow-lg flex items-center justify-center transition-transform`}
+                style={{ 
+                  transform: `translate3d(${m.x}px, ${m.y}px, 10px)`,
+                  backgroundColor: m.color === 'primary' ? '#006780' : m.color === 'secondary' ? '#e20476' : '#62a800',
+                  borderColor: 'rgba(255,255,255,0.4)'
+                }}
+              >
+                {/* 3D sphere shine */}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/40 via-transparent to-black/10 absolute top-0.5 left-0.5" />
+                <div className="w-3 h-3 rounded-full bg-white/60 absolute top-2 left-2 blur-[1px]" />
+              </div>
+            ))}
+          </div>
+          
+          <div className="absolute w-8 h-8 rounded-full bg-surface-container-highest shadow-inner border border-surface-variant flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-slate-300 shadow-md" />
+          </div>
+        </motion.div>
       </div>
 
-      <div className="relative w-72 h-72 sm:w-96 sm:h-96 rounded-full shadow-[inset_0_4px_10px_rgba(0,0,0,0.1),8px_8px_20px_rgba(0,0,0,0.1),-8px_-8px_20px_#fff] border-8 border-surface-container-high bg-surface flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-        
-        <div className="relative w-full h-full">
-          {marbles.map((m) => (
-            <motion.div
-              key={m.id}
-              animate={{ x: m.x, y: m.y }}
-              transition={{ type: 'spring', damping: 10, stiffness: 50 }}
-              className={`absolute top-1/2 left-1/2 -ml-6 -mt-6 w-12 h-12 rounded-full ${m.bg} ${m.border} border-2 shadow-lg flex items-center justify-center`}
-            >
-              <div className="w-3 h-3 rounded-full bg-white/40 absolute top-2 left-2" />
-            </motion.div>
-          ))}
-        </div>
-        
-        <div className="absolute w-6 h-6 rounded-full bg-surface-container-highest shadow-inner border border-surface-variant flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-slate-300" />
-        </div>
-      </div>
-
-      <div className="bg-tertiary-container/10 px-6 py-3 rounded-2xl border-2 border-tertiary-container/30 flex items-center gap-3">
-        <Compass className="text-tertiary-container" size={24} />
-        <p className="text-slate-500 font-bold text-center">Tilt your phone to roll!</p>
+      <div className="text-center space-y-1">
+        <h2 className="comfortaa text-2xl text-primary font-bold">Tilt & Balance</h2>
+        <p className="text-slate-500 font-bold text-sm">
+          {Math.abs(tilt.x) > 0.1 || Math.abs(tilt.y) > 0.1 ? 'Rolling...' : 'Tilt to roll marbles!'}
+        </p>
       </div>
 
       <div className="flex gap-4 w-full max-w-sm">
         <button 
           onClick={resetBoard}
-          className="flex-1 bg-white border-2 border-primary-container text-primary-container rounded-xl py-3 font-bold shadow-[0_4px_0_0_#4cc9f0] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+          className="flex-1 bg-white border-2 border-primary-container text-primary-container rounded-2xl py-3 font-bold shadow-[0_6px_0_0_#4cc9f0] active:translate-y-1 active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
         >
-          Reset Board
+          <LayoutGrid size={20} /> Reset
         </button>
         <button 
           onClick={addMarble}
-          className="flex-1 bg-primary text-white rounded-xl py-3 font-bold shadow-[0_4px_0_0_#004e61] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="flex-1 bg-primary text-white rounded-2xl py-3 font-bold shadow-[0_6px_0_0_#004e61] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <Plus size={20} /> Add Marble
         </button>
