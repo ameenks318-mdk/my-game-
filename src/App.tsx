@@ -296,14 +296,6 @@ const BottomNav = ({ active, onChange }: { active: Screen, onChange: (s: Screen)
       <Gamepad2 size={28} />
       <span className="text-xs font-bold mt-1">Play</span>
     </button>
-    <button className="flex flex-col items-center justify-center p-2 text-slate-500">
-      <Users size={28} />
-      <span className="text-xs font-bold mt-1">Friends</span>
-    </button>
-    <button className="flex flex-col items-center justify-center p-2 text-slate-500">
-      <User size={28} />
-      <span className="text-xs font-bold mt-1">Me</span>
-    </button>
   </nav>
 );
 
@@ -768,18 +760,6 @@ const SelectionScreen = ({ onSelect, stats, currentTheme, onSetTheme }: { onSele
             className={`flex-none lg:px-8 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'toys' ? 'bg-white text-slate-800 shadow-sm scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Toys
-          </button>
-          <button 
-            onClick={() => { playSound('click', 1); setActiveTab('progress'); }}
-            className={`flex-none lg:px-8 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'progress' ? 'bg-white text-slate-800 shadow-sm scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Progress
-          </button>
-          <button 
-            onClick={() => { playSound('click', 1); setActiveTab('leaderboard'); }}
-            className={`flex-none lg:px-8 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'leaderboard' ? 'bg-white text-slate-800 shadow-sm scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Social
           </button>
           <button 
             onClick={() => { playSound('click', 1); setActiveTab('shop'); }}
