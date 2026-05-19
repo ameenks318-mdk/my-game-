@@ -29,14 +29,21 @@ import {
   Award,
   Globe,
   Disc,
-  LogOut
+  LogOut,
+  Lock,
+  ShieldCheck,
+  Atom,
+  Camera,
+  Upload,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
 
 let hapticsEnabledGlobal = true;
 
 // --- Types ---
-type Screen = 'welcome' | 'selection' | 'toy-tilt' | 'toy-popit' | 'toy-sliders' | 'toy-spinner' | 'toy-xylophone' | 'toy-squeeze' | 'toy-bubbles' | 'toy-bubblewrap' | 'toy-wind' | 'toy-bobble';
+type Screen = 'welcome' | 'selection' | 'toy-tilt' | 'toy-popit' | 'toy-sliders' | 'toy-spinner' | 'toy-xylophone' | 'toy-squeeze' | 'toy-bubbles' | 'toy-bubblewrap' | 'toy-wind' | 'toy-bobble' | 'toy-kaleidoscope' | 'toy-neon' | 'payment';
 
 // --- Constants ---
 const TOYS = [
@@ -44,6 +51,8 @@ const TOYS = [
   { id: 'toy-popit', name: 'Pop-It', icon: LayoutGrid, color: 'secondary', locked: false },
   { id: 'toy-bubblewrap', name: 'Bubble Wrap', icon: CircleDot, color: 'primary-container', locked: false, isNew: true },
   { id: 'toy-bubbles', name: 'Soap Bubbles', icon: Sparkles, color: 'primary-container', locked: false },
+  { id: 'toy-kaleidoscope', name: 'Kaleidoscope', icon: Disc, color: 'tertiary', locked: false, premium: true },
+  { id: 'toy-neon', name: 'Liquid Neon', icon: Atom, color: 'primary', locked: false, premium: true },
   { id: 'toy-xylophone', name: 'Xylophone', icon: Music, color: 'tertiary', locked: false },
   { id: 'toy-squeeze', name: 'Squeeze Monster', icon: Ghost, color: 'secondary', locked: false },
   { id: 'toy-wind', name: 'Wind Chimes', icon: Wind, color: 'tertiary-container', locked: false },
@@ -633,15 +642,14 @@ const WelcomeScreen = ({ onStart }: { onStart: () => void, key?: string }) => (
         <div className="absolute top-1/2 right-0 -mr-2 -mt-2 w-4 h-4 bg-tertiary rounded-full shadow-md" />
       </motion.div>
 
-      {/* Central Core Toy */}
       <motion.div
         animate={{ 
           y: [0, -30, 0],
-          rotateY: [0, 180, 360],
+          rotate: [-5, 5, -5],
           scale: [1, 1.05, 1]
         }}
         transition={{ 
-          duration: 10, 
+          duration: 4, 
           repeat: Infinity, 
           ease: "easeInOut" 
         }}
@@ -649,12 +657,19 @@ const WelcomeScreen = ({ onStart }: { onStart: () => void, key?: string }) => (
       >
         {/* Dynamic Glow */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.6),transparent)]" />
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-        >
-          <Dices size={90} strokeWidth={1.5} className="text-white drop-shadow-[0_8px_15px_rgba(0,0,0,0.4)]" />
-        </motion.div>
+        <div className="flex flex-col items-center">
+          <motion.div
+            animate={{ 
+              rotate: [-10, 10, -10],
+              y: [0, 5, 0]
+            }}
+            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+            className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-primary/20"
+          >
+            <User size={60} strokeWidth={1.5} className="text-primary drop-shadow-[0_4px_8px_rgba(0,0,0,0.2)]" />
+          </motion.div>
+          <div className="w-16 h-8 bg-slate-200 mt-[-10px] rounded-t-xl border-t-4 border-slate-300" />
+        </div>
         
         {/* Liquid wave effect at the bottom */}
         <motion.div 
@@ -672,7 +687,7 @@ const WelcomeScreen = ({ onStart }: { onStart: () => void, key?: string }) => (
         transition={{ delay: 0.2 }}
         className="comfortaa text-4xl md:text-6xl text-primary font-bold drop-shadow-sm mb-2"
       >
-        Serenity Spin
+        Bobble & Spin
       </motion.h1>
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
@@ -711,7 +726,7 @@ const WelcomeScreen = ({ onStart }: { onStart: () => void, key?: string }) => (
   </motion.div>
 );
 
-const SelectionScreen = ({ onSelect, stats, currentTheme, onSetTheme }: { onSelect: (id: string) => void, stats: { xp: number, coins: number, level: number, streak: number }, currentTheme: string, onSetTheme: (id: string) => void }) => {
+const SelectionScreen = ({ onSelect, stats, currentTheme, onSetTheme }: { onSelect: (id: string) => void, stats: { xp: number, coins: number, level: number, streak: number, premiumUnlocks?: string[] }, currentTheme: string, onSetTheme: (id: string) => void }) => {
   const [activeTab, setActiveTab] = useState<'toys' | 'progress' | 'leaderboard' | 'shop'>('toys');
   const { user, signIn, signOut } = useFirebase();
 
@@ -777,41 +792,53 @@ const SelectionScreen = ({ onSelect, stats, currentTheme, onSetTheme }: { onSele
 
       {activeTab === 'toys' ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {TOYS.map((toy) => (
-            <motion.button 
-              key={toy.id}
-              variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}
-              onClick={() => onSelect(toy.id)}
-              className={`relative bg-white rounded-[32px] border-[4px] p-6 flex flex-col items-center justify-center gap-4 transition-all duration-150 group cursor-pointer
-                ${toy.color === 'primary' ? 'border-primary shadow-[6px_6px_0_0_#004e61] text-primary hover:shadow-[8px_8px_0_0_#004e61]' : ''}
-                ${toy.color === 'secondary' ? 'border-secondary shadow-[6px_6px_0_0_#8e0048] text-secondary hover:shadow-[8px_8px_0_0_#8e0048]' : ''}
-                ${toy.color === 'primary-container' ? 'border-primary-container shadow-[6px_6px_0_0_#005266] text-primary hover:shadow-[8px_8px_0_0_#005266]' : ''}
-                ${toy.color === 'tertiary' ? 'border-tertiary shadow-[6px_6px_0_0_#3e4c00] text-tertiary hover:shadow-[8px_8px_0_0_#3e4c00]' : ''}
-                ${toy.color === 'tertiary-container' ? 'border-tertiary-container shadow-[6px_6px_0_0_#425000] text-on-tertiary-container hover:shadow-[8px_8px_0_0_#425000]' : ''}
-                ${toy.color === 'secondary-container' ? 'border-secondary-container shadow-[6px_6px_0_0_#8e0048] text-on-secondary-container hover:shadow-[8px_8px_0_0_#8e0048]' : ''}
-                hover:-translate-y-1 active:translate-y-1 active:shadow-[2px_2px_0_0_currentColor]
-              `}
-            >
-              {toy.isNew && (
-                <div className="absolute -top-4 -right-4 bg-tertiary text-white border-[3px] border-surface rounded-full px-3 py-1 text-xs font-bold rotate-12 shadow-sm animate-pulse z-10">
-                  NEW!
+          {TOYS.map((toy) => {
+            const isUnlocked = !toy.premium || stats.premiumUnlocks?.includes(toy.id);
+            return (
+              <motion.button 
+                key={toy.id}
+                variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}
+                onClick={() => onSelect(toy.id)}
+                className={`relative bg-white rounded-[32px] border-[4px] p-6 flex flex-col items-center justify-center gap-4 transition-all duration-150 group cursor-pointer
+                  ${toy.color === 'primary' ? 'border-primary shadow-[6px_6px_0_0_#004e61] text-primary hover:shadow-[8px_8px_0_0_#004e61]' : ''}
+                  ${toy.color === 'secondary' ? 'border-secondary shadow-[6px_6px_0_0_#8e0048] text-secondary hover:shadow-[8px_8px_0_0_#8e0048]' : ''}
+                  ${toy.color === 'primary-container' ? 'border-primary-container shadow-[6px_6px_0_0_#005266] text-primary hover:shadow-[8px_8px_0_0_#005266]' : ''}
+                  ${toy.color === 'tertiary' ? 'border-tertiary shadow-[6px_6px_0_0_#3e4c00] text-tertiary hover:shadow-[8px_8px_0_0_#3e4c00]' : ''}
+                  ${toy.color === 'tertiary-container' ? 'border-tertiary-container shadow-[6px_6px_0_0_#425000] text-on-tertiary-container hover:shadow-[8px_8px_0_0_#425000]' : ''}
+                  ${toy.color === 'secondary-container' ? 'border-secondary-container shadow-[6px_6px_0_0_#8e0048] text-on-secondary-container hover:shadow-[8px_8px_0_0_#8e0048]' : ''}
+                  hover:-translate-y-1 active:translate-y-1 active:shadow-[2px_2px_0_0_currentColor]
+                  ${!isUnlocked ? 'grayscale brightness-90 opacity-80' : ''}
+                `}
+              >
+                {toy.isNew && (
+                  <div className="absolute -top-4 -right-4 bg-tertiary text-white border-[3px] border-surface rounded-full px-3 py-1 text-xs font-bold rotate-12 shadow-sm animate-pulse z-10">
+                    NEW!
+                  </div>
+                )}
+                {toy.premium && !isUnlocked && (
+                  <div className="absolute -top-4 -right-4 bg-amber-500 text-white border-[3px] border-surface rounded-full px-3 py-1 text-xs font-black rotate-12 shadow-md z-10 flex items-center gap-1">
+                    <Star size={10} fill="currentColor" /> PREMIUM
+                  </div>
+                )}
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center group-active:scale-95 transition-transform
+                  ${toy.color === 'primary' ? 'bg-primary-fixed' : ''}
+                  ${toy.color === 'secondary' ? 'bg-secondary-fixed' : ''}
+                  ${toy.color === 'primary-container' ? 'bg-surface border-2 border-primary-container' : ''}
+                  ${toy.color === 'tertiary' ? 'bg-tertiary-fixed' : ''}
+                  ${toy.color === 'tertiary-container' ? 'bg-surface border-2 border-tertiary-container' : ''}
+                  ${toy.color === 'secondary-container' ? 'bg-surface border-2 border-secondary-container' : ''}
+                `}>
+                  <toy.icon size={48} strokeWidth={2.5} />
                 </div>
-              )}
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center group-active:scale-95 transition-transform
-                ${toy.color === 'primary' ? 'bg-primary-fixed' : ''}
-                ${toy.color === 'secondary' ? 'bg-secondary-fixed' : ''}
-                ${toy.color === 'primary-container' ? 'bg-surface border-2 border-primary-container' : ''}
-                ${toy.color === 'tertiary' ? 'bg-tertiary-fixed' : ''}
-                ${toy.color === 'tertiary-container' ? 'bg-surface border-2 border-tertiary-container' : ''}
-                ${toy.color === 'secondary-container' ? 'bg-surface border-2 border-secondary-container' : ''}
-              `}>
-                <toy.icon size={48} strokeWidth={2.5} />
-              </div>
-               <span className="comfortaa text-lg font-bold text-center leading-tight">
-                {toy.name.split(' ').map((word, i) => <React.Fragment key={i}>{word}<br/></React.Fragment>)}
-              </span>
-            </motion.button>
-          ))}
+                 <span className="comfortaa text-lg font-bold text-center leading-tight">
+                  {toy.name.split(' ').map((word, i) => <React.Fragment key={i}>{word}<br/></React.Fragment>)}
+                </span>
+                {!isUnlocked && (
+                   <div className="absolute inset-0 bg-slate-900/5 rounded-[28px] pointer-events-none" />
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       ) : activeTab === 'progress' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -839,24 +866,24 @@ const SelectionScreen = ({ onSelect, stats, currentTheme, onSetTheme }: { onSele
                  <div className="flex justify-between items-end">
                     <div>
                        <h3 className="text-xl font-black text-slate-800">Next Level</h3>
-                       <p className="text-slate-400 font-bold text-sm tracking-tight">Earn XP to level up!</p>
+                       <p className="text-slate-400 font-bold text-sm tracking-tight">Difficulty increases as you rise!</p>
                     </div>
                     <div className="text-right">
-                       <span className="text-2xl font-black text-primary">{stats.xp % 100}</span>
-                       <span className="text-slate-300 font-bold"> / 100 XP</span>
+                       <span className="text-2xl font-black text-primary">{stats.xp}</span>
+                       <span className="text-slate-300 font-bold"> / {Math.floor(100 * Math.pow(stats.level, 1.5))} XP</span>
                     </div>
                  </div>
                  <div className="h-6 bg-slate-100 rounded-2xl p-1 shadow-inner overflow-hidden">
                     <motion.div 
                        initial={{ width: 0 }}
-                       animate={{ width: `${stats.xp % 100}%` }}
+                       animate={{ width: `${Math.min(100, (stats.xp / Math.floor(100 * Math.pow(stats.level, 1.5))) * 100)}%` }}
                        className="h-full bg-gradient-to-r from-primary to-primary-container rounded-xl shadow-sm"
                     />
                  </div>
                  <div className="pt-2 flex items-start gap-2">
                     <Sparkles size={14} className="text-primary mt-0.5 shrink-0" />
                     <p className="text-[10px] text-slate-500 font-bold leading-relaxed">
-                       Level up every <span className="text-slate-800">100 XP</span>. Each level increases your sensory score and prestige!
+                       Reaching level <span className="text-slate-800 font-black">{stats.level + 1}</span> requires <span className="text-slate-800 font-black">{Math.floor(100 * Math.pow(stats.level, 1.5))} XP</span> total. Keep playing to ascend!
                     </p>
                  </div>
               </div>
@@ -1081,37 +1108,75 @@ const TiltToy = () => {
   });
 
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [showSettings, setShowSettings] = useState(false);
-  const tiltRef = React.useRef({ x: 0, y: 0 });
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const tiltRef = React.useRef({ x: 0, y: 0, rawX: 0, rawY: 0 });
   const isSensorActive = React.useRef(false);
+
+  const calibrate = () => {
+    setOffset({ x: (tiltRef.current as any).rawX || 0, y: (tiltRef.current as any).rawY || 0 });
+    playSound('click', 1.2);
+    triggerVibration(10);
+  };
+
+  // Check if permission is needed (iOS)
+  useEffect(() => {
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      setNeedsPermission(true);
+    }
+  }, []);
+
+  const requestSensorPermission = async () => {
+    try {
+      const response = await (DeviceOrientationEvent as any).requestPermission();
+      if (response === 'granted') {
+        setNeedsPermission(false);
+        playSound('celebrate', 1);
+      }
+    } catch (error) {
+      console.error('Permission denied', error);
+    }
+  };
 
   // Handle Device Orientation
   React.useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       // Gamma is left/right (-90 to 90), Beta is front/back (-180 to 180)
       if (e.gamma !== null && e.beta !== null) {
-        isSensorActive.current = true;
-        // Use flat position as neutral (0,0)
-        // Add a small deadzone to prevent jitter
-        const deadzone = 2; 
+        if (!isSensorActive.current) {
+          isSensorActive.current = true;
+          setNeedsPermission(false);
+        }
         
-        let tx = e.gamma / 30; // More sensitive than 45
-        let ty = e.beta / 30;
-        
-        if (Math.abs(e.gamma) < deadzone) tx = 0;
-        if (Math.abs(e.beta) < deadzone) ty = 0;
+        // Raw values for calibration
+        const rawX = e.gamma;
+        const rawY = e.beta;
 
-        tx = Math.max(-1, Math.min(1, tx));
-        ty = Math.max(-1, Math.min(1, ty));
+        // Apply calibration offset
+        const adjustedX = rawX - (offset.x || 0);
+        const adjustedY = rawY - (offset.y || 0);
+
+        // Increase deadzone to prevent "moving by itself"
+        const deadzone = 4.0; 
+        
+        let tx = adjustedX / 15; 
+        let ty = adjustedY / 15;
+        
+        if (Math.abs(adjustedX) < deadzone) tx = 0;
+        if (Math.abs(adjustedY) < deadzone) ty = 0;
+
+        tx = Math.max(-1.5, Math.min(1.5, tx));
+        ty = Math.max(-1.5, Math.min(1.5, ty));
         
         setTilt({ x: tx, y: ty });
-        tiltRef.current = { x: tx, y: ty };
+        (tiltRef.current as any) = { x: tx, y: ty, rawX, rawY };
       }
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
     return () => window.removeEventListener('deviceorientation', handleOrientation);
-  }, []);
+  }, [offset]);
 
   // Physics Loop
   React.useEffect(() => {
@@ -1542,19 +1607,28 @@ const TiltToy = () => {
       </AnimatePresence>
 
       <div 
-        className="relative perspective-1000"
+        className="relative perspective-1000 group"
         onMouseMove={handleSimulatedTilt}
         onMouseLeave={resetTilt}
         onTouchMove={handleSimulatedTilt}
         onTouchEnd={resetTilt}
       >
+        {/* Helper overlay for simulation */}
+        {!isSensorActive.current && !needsPermission && (
+          <div className="absolute -inset-10 border-2 border-dashed border-primary/10 rounded-[60px] pointer-events-none flex items-center justify-center">
+             <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest translate-y-48">
+                Move mouse/touch to tilt
+             </div>
+          </div>
+        )}
+
         <motion.div 
           style={{ 
             rotateX: tilt.y * -15, 
             rotateY: tilt.x * 15,
             transformStyle: 'preserve-3d'
           }}
-          className="relative w-80 h-80 sm:w-96 sm:h-96 rounded-full shadow-[inset_0_10px_20px_rgba(0,0,0,0.1),20px_20px_40px_rgba(0,0,0,0.2),-10px_-10px_30px_#fff] border-8 border-surface-container-high bg-surface flex items-center justify-center overflow-hidden transition-transform duration-100 ease-out"
+          className="relative w-80 h-80 sm:w-80 sm:h-80 rounded-full shadow-[inset_0_10px_20px_rgba(0,0,0,0.1),20px_20px_40px_rgba(0,0,0,0.2),-10px_-10px_30px_#fff] border-8 border-surface-container-high bg-surface flex items-center justify-center overflow-auto active:scale-[0.98] transition-transform duration-150 ease-out"
         >
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
           
@@ -1617,11 +1691,30 @@ const TiltToy = () => {
         </motion.div>
       </div>
 
-      <div className="text-center space-y-1">
-        <h2 className="comfortaa text-2xl text-primary font-bold">Tilt & Balance</h2>
-        <p className="text-slate-500 font-bold text-sm">
-          {Math.abs(tilt.x) > 0.1 || Math.abs(tilt.y) > 0.1 ? 'Rolling...' : 'Tilt to roll marbles!'}
-        </p>
+      <div className="text-center space-y-4">
+        {needsPermission && (
+          <button 
+            onClick={requestSensorPermission}
+            className="flex items-center gap-2 px-6 py-3 bg-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all"
+          >
+            <Smartphone size={16} /> Enable Motion Sensors
+          </button>
+        )}
+        
+        <div className="space-y-3 flex flex-col items-center">
+          <h2 className="comfortaa text-2xl text-primary font-bold">Tilt & Balance</h2>
+          <div className="flex gap-2">
+            <button 
+               onClick={calibrate}
+               className="flex items-center gap-1.5 px-4 py-1.5 bg-slate-100 text-slate-500 rounded-full font-black text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors"
+            >
+               <RotateCcw size={12} /> Reset Center
+            </button>
+            <div className={`px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-wider ${isSensorActive.current ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+               {isSensorActive.current ? 'Sensors Active' : 'Simulation Mode'}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-4 w-full max-w-sm">
@@ -2390,6 +2483,344 @@ const WindChimesToy = ({ addXP }: { addXP: (n: number) => void }) => {
   );
 };
 
+const KaleidoscopeToy = ({ addXP }: { addXP: (n: number) => void }) => {
+  const [color, setColor] = useState('#006780');
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 4;
+  }, []);
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const relX = x - centerX;
+    const relY = y - centerY;
+
+    const segments = 8;
+    ctx.fillStyle = color;
+    
+    for (let i = 0; i < segments; i++) {
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate((i * 2 * Math.PI) / segments);
+      
+      ctx.beginPath();
+      ctx.arc(relX, relY, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mirror
+      ctx.scale(1, -1);
+      ctx.beginPath();
+      ctx.arc(relX, relY, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    
+    if (Math.random() > 0.95) addXP(1);
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    playSound('pop', 0.5);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 pb-32">
+       <div className="flex gap-3 p-3 bg-white/60 backdrop-blur-md rounded-[32px] border-4 border-white shadow-xl">
+          {['#006780', '#8e0048', '#3e4c00', '#f59e0b', '#10b981', '#6366f1'].map(c => (
+            <button key={c} onClick={() => setColor(c)} className={`w-10 h-10 rounded-full border-4 ${color === c ? 'border-primary scale-110 shadow-lg' : 'border-white'}`} style={{ backgroundColor: c }} />
+          ))}
+          <div className="w-px h-10 bg-slate-200 mx-1" />
+          <button onClick={clear} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-white transition-colors">
+             <Plus className="rotate-45" size={20} />
+          </button>
+       </div>
+       <div className="relative p-4 bg-white rounded-[40px] border-8 border-primary shadow-2xl overflow-hidden aspect-square w-full max-w-sm">
+          <canvas 
+            ref={canvasRef}
+            width={400}
+            height={400}
+            onMouseDown={() => { setIsDrawing(true); playSound('click', 0.5); }}
+            onMouseUp={() => setIsDrawing(false)}
+            onMouseMove={draw}
+            onTouchStart={() => { setIsDrawing(true); playSound('click', 0.5); }}
+            onTouchEnd={() => setIsDrawing(false)}
+            onTouchMove={draw}
+            className="w-full h-full bg-slate-50 cursor-crosshair touch-none"
+          />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary/20 rounded-full blur-md animate-pulse pointer-events-none" />
+       </div>
+       <p className="text-sm font-bold text-slate-500 bg-white/40 px-6 py-2 rounded-full border-2 border-white backdrop-blur-sm">Draw to create hypnotic patterns</p>
+    </div>
+  );
+};
+
+const LiquidNeonToy = ({ addXP }: { addXP: (n: number) => void }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const particles = React.useRef<any[]>([]);
+  const mouse = React.useRef({ x: 0, y: 0, active: false });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      if (rect) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981'];
+    
+    // Initialize particles
+    for(let i = 0; i < 40; i++) {
+      particles.current.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        size: Math.random() * 15 + 5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: Math.random()
+      });
+    }
+
+    let frame: number;
+    const render = () => {
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      particles.current.forEach(p => {
+        if (mouse.current.active) {
+          const dx = mouse.current.x - p.x;
+          const dy = mouse.current.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 200) {
+            p.vx += dx * 0.01;
+            p.vy += dy * 0.01;
+          }
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
+
+        // Bounce
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = p.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      frame = requestAnimationFrame(render);
+    };
+    render();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  const handlePointer = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    mouse.current = { x, y, active: true };
+    if (Math.random() > 0.95) addXP(1);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-950 pb-32">
+       <div className="mb-6 text-center">
+          <h2 className="comfortaa text-3xl text-emerald-400 font-black drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]">Liquid Neon</h2>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mt-1">Touch to attract the energy</p>
+       </div>
+       <div className="relative w-full max-w-sm aspect-square bg-slate-900 rounded-[40px] border-8 border-slate-800 shadow-2xl overflow-hidden cursor-crosshair touch-none">
+          <canvas 
+            ref={canvasRef}
+            onMouseMove={handlePointer}
+            onTouchMove={handlePointer}
+            onMouseDown={() => mouse.current.active = true}
+            onMouseUp={() => mouse.current.active = false}
+            onTouchStart={() => { mouse.current.active = true; playSound('click', 1); }}
+            onTouchEnd={() => mouse.current.active = false}
+            className="w-full h-full"
+          />
+       </div>
+       <div className="mt-8 flex gap-4">
+          <div className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full border border-slate-700">
+             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+             <span className="text-[10px] text-emerald-400 font-black uppercase">Physics Engine Active</span>
+          </div>
+       </div>
+    </div>
+  );
+};
+
+const PaymentScreen = ({ id, onConfirm, onCancel }: { id: string, onConfirm: (toyId: string) => void, onCancel: () => void }) => {
+  const toy = TOYS.find(t => t.id === id);
+  const upiId = "ameenks318-4@oksbi";
+  const amount = "20";
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleConfirm = () => {
+    setIsVerifying(true);
+    playSound('click', 1.2);
+    
+    // Simulate secure verification
+    setTimeout(() => {
+      playSound('celebrate', 1);
+      onConfirm(id);
+      setIsVerifying(false);
+    }, 2000);
+  };
+
+  // Generate UPI QR link
+  const upiLink = `upi://pay?pa=${upiId}&pn=Ameen%20KS&am=${amount}&cu=INR`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 pb-32">
+       <motion.div 
+         initial={{ scale: 0.9, opacity: 0 }}
+         animate={{ scale: 1, opacity: 1 }}
+         className="bg-white rounded-[48px] border-4 border-slate-900 shadow-2xl p-8 w-full max-w-sm text-center space-y-6 relative overflow-hidden"
+       >
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 via-rose-500 to-primary" />
+          
+          <div className="flex justify-between items-start">
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shadow-inner">
+               <toy.icon size={36} />
+            </div>
+            <div className="bg-emerald-500 text-white px-4 py-2 rounded-2xl font-black text-lg shadow-sm border-2 border-white">
+               ₹{amount}
+            </div>
+          </div>
+
+          <div className="text-left">
+             <h2 className="comfortaa text-2xl font-black text-slate-900 leading-tight">Unlock {toy?.name}</h2>
+             <p className="text-slate-500 font-bold text-xs mt-1">LIFETIME PREMIUM ACCESS</p>
+          </div>
+
+          <div className="bg-slate-50 p-6 rounded-[32px] space-y-4 border-2 border-slate-100 relative">
+             <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="h-px bg-slate-200 flex-1" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scan with GPay, PhonePe, or Paytm</span>
+                <div className="h-px bg-slate-200 flex-1" />
+             </div>
+             
+             <div className="flex flex-col items-center gap-4">
+                <div className="relative group">
+                  <div className="absolute -inset-2 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl blur-md opacity-50" />
+                  <div className="w-48 h-48 bg-white border-4 border-slate-900 rounded-3xl flex items-center justify-center relative p-3 shadow-xl overflow-hidden">
+                    <img 
+                      src={qrUrl} 
+                      alt="UPI QR Code" 
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-1 rounded-lg border-2 border-slate-900 shadow-md">
+                       <Smartphone size={16} className="text-primary" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="w-full">
+                  <div className="text-[9px] font-black text-slate-400 uppercase text-center mb-1">Receiver UPI ID</div>
+                  <div className="text-xs font-black text-slate-700 p-2.5 bg-white rounded-xl border border-slate-200 select-all cursor-copy flex items-center justify-center gap-2 shadow-sm">
+                    {upiId}
+                  </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="space-y-3">
+             <button 
+               disabled={isVerifying}
+               onClick={handleConfirm}
+               className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_8px_0_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3
+                ${isVerifying ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white'}
+               `}
+             >
+                {isVerifying ? (
+                   <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Verifying Transaction...
+                   </>
+                ) : (
+                   <>
+                      <Lock size={16} className="text-emerald-400" />
+                      Verify & Unlock
+                   </>
+                )}
+             </button>
+             <button 
+               onClick={onCancel}
+               className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+             >
+                Cancel and Return
+             </button>
+          </div>
+       </motion.div>
+       
+       <div className="flex flex-col items-center gap-2">
+         <div className="flex items-center gap-3 text-slate-400">
+            <div className="flex items-center gap-1 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100">
+              <ShieldCheck size={12} />
+              <span className="text-[10px] font-black uppercase tracking-tight">Secure Payment</span>
+            </div>
+            <div className="flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100">
+              <Zap size={12} />
+              <span className="text-[10px] font-black uppercase tracking-tight">Instant Unlock</span>
+            </div>
+         </div>
+         <p className="text-[9px] text-slate-400 font-medium max-w-[240px] text-center leading-relaxed">
+           By scanning, you agree to support the developer. Premium toys are permanently added to your profile.
+         </p>
+       </div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 function AppContent() {
@@ -2400,34 +2831,48 @@ function AppContent() {
   const [currentTheme, setCurrentTheme] = useState(THEMES[0].id);
 
   // Gamification State (pre-populate with cloud or default)
-  const [localStats, setLocalStats] = useState<{xp: number, coins: number, level: number, streak: number, achievements: string[]}>({
+  const [localStats, setLocalStats] = useState<{xp: number, coins: number, level: number, streak: number, achievements: string[], premiumUnlocks: string[]}>({
     xp: 0,
     coins: 0,
     level: 1,
     streak: 1,
-    achievements: []
+    achievements: [],
+    premiumUnlocks: []
   });
 
   // Sync cloud stats to local state when they change
   React.useEffect(() => {
     if (cloudStats) {
-      setLocalStats(cloudStats);
+      setLocalStats(prev => ({
+        ...cloudStats,
+        premiumUnlocks: cloudStats.premiumUnlocks || prev.premiumUnlocks || []
+      }));
     }
   }, [cloudStats]);
 
   const [notification, setNotification] = useState<{title: string, icon: any} | null>(null);
 
+  const getXPForLevel = (level: number) => {
+    // Progressive difficulty: Level 1->2 is 100XP, 2->3 is 250XP, 3->4 is 500XP, etc.
+    return Math.floor(100 * Math.pow(level, 1.5));
+  };
+
   const addXP = (amount: number) => {
     setLocalStats(prev => {
       const newXP = prev.xp + amount;
-      const newLevel = Math.floor(newXP / 100) + 1;
       
-      const nextStats = { ...prev, xp: newXP, level: newLevel };
+      // Calculate level based on thresholds
+      let currentLevel = prev.level;
+      while (newXP >= getXPForLevel(currentLevel)) {
+        currentLevel++;
+      }
       
-      if (newLevel > prev.level) {
+      const nextStats = { ...prev, xp: newXP, level: currentLevel };
+      
+      if (currentLevel > prev.level) {
         playSound('celebrate', 1);
         triggerVibration([50, 30, 50]);
-        setNotification({ title: `Level Up! You're now Level ${newLevel}`, icon: Award });
+        setNotification({ title: `Level Up! You're now Level ${currentLevel}`, icon: Award });
         setTimeout(() => setNotification(null), 3000);
       }
       
@@ -2497,15 +2942,40 @@ function AppContent() {
     playSound('click', next ? 1.2 : 0.8);
   };
 
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null);
+
   const handleToySelect = (id: string) => {
-    playSound('click', 1.2);
-    if (TOYS.find(t => t.id === id)) {
+    const toy = TOYS.find(t => t.id === id);
+    if (toy?.premium && !localStats.premiumUnlocks?.includes(id)) {
+      setPendingSelection(id);
+      setCurrentScreen('payment');
+      playSound('click', 1.2);
+      return;
+    }
+
+    if (toy) {
+      playSound('click', 1.2);
       setCurrentScreen(id as Screen);
       if (!isMusicOn) {
         setIsMusicOn(true);
         toggleBackgroundMusic(true);
       }
     }
+  };
+
+  const handleSuccessfulPurchase = (toyId: string) => {
+    setLocalStats(prev => {
+      const nextStats = { 
+        ...prev, 
+        premiumUnlocks: [...(prev.premiumUnlocks || []), toyId]
+      };
+      if (user) updateStats(nextStats);
+      return nextStats;
+    });
+    setNotification({ title: "Premium Toy Unlocked!", icon: Star });
+    setTimeout(() => setNotification(null), 3000);
+    setCurrentScreen(toyId as Screen);
+    setPendingSelection(null);
   };
 
   const themeColors = THEMES.find(t => t.id === currentTheme)?.colors || THEMES[0].colors;
@@ -2628,6 +3098,25 @@ function AppContent() {
                     <BobbleToy addXP={addXP} />
                   </motion.div>
                 )}
+                {currentScreen === 'toy-kaleidoscope' && (
+                  <motion.div key="kaleidoscope" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
+                    <KaleidoscopeToy addXP={addXP} />
+                  </motion.div>
+                )}
+                {currentScreen === 'toy-neon' && (
+                  <motion.div key="neon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
+                    <LiquidNeonToy addXP={addXP} />
+                  </motion.div>
+                )}
+                {currentScreen === 'payment' && pendingSelection && (
+                  <motion.div key="payment" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex-1 flex flex-col">
+                     <PaymentScreen 
+                        id={pendingSelection} 
+                        onConfirm={handleSuccessfulPurchase} 
+                        onCancel={() => setCurrentScreen('selection')} 
+                     />
+                  </motion.div>
+                )}
               </AnimatePresence>
             </main>
 
@@ -2643,36 +3132,93 @@ function AppContent() {
 }
 
 const BobbleToy = ({ addXP }: { addXP: (n: number) => void }) => {
-  const [character, setCharacter] = useState<'cat' | 'dog' | 'alien' | 'robot'>('cat');
+  const [character, setCharacter] = useState<'cat' | 'dog' | 'alien' | 'robot' | 'custom'>('cat');
   const [isWobbling, setIsWobbling] = useState(false);
+  const [customImage, setCustomImage] = useState<string | null>(null);
+  const [pokeCount, setPokeCount] = useState(0);
+  const [isPopped, setIsPopped] = useState(false);
 
   const chars = {
     cat: { emoji: '🐱', color: 'bg-orange-100', name: 'Milo' },
     dog: { emoji: '🐶', color: 'bg-amber-100', name: 'Buddy' },
     alien: { emoji: '👽', color: 'bg-green-100', name: 'Zorp' },
     robot: { emoji: '🤖', color: 'bg-slate-100', name: 'Beep' },
+    custom: { emoji: '', color: 'bg-indigo-50', name: 'You' },
   };
 
   const handlePoke = () => {
+    if (isPopped) return;
+    
     playSound('pop', 1.2);
     triggerVibration([10, 5, 10]);
     addXP(1);
     setIsWobbling(true);
+    setPokeCount(prev => {
+      const next = prev + 1;
+      // Pop threshold
+      if (next >= 50) {
+        setIsPopped(true);
+        playSound('celebrate', 1.5);
+        triggerVibration([100, 50, 100]);
+        addXP(50);
+      }
+      return next;
+    });
     setTimeout(() => setIsWobbling(false), 500);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomImage(reader.result as string);
+        setCharacter('custom');
+        playSound('click', 1);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetPop = () => {
+    setIsPopped(false);
+    setPokeCount(0);
+    playSound('click', 0.8);
   };
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8 pb-32">
-       <div className="flex gap-2 p-2 bg-white/40 backdrop-blur-md rounded-2xl border-2 border-white shadow-sm z-20">
-          {(Object.keys(chars) as Array<keyof typeof chars>).map((c) => (
+       <div className="flex flex-wrap justify-center gap-2 p-2 bg-white/40 backdrop-blur-md rounded-2xl border-2 border-white shadow-sm z-20">
+          {(Object.keys(chars) as Array<keyof typeof chars>).map((c) => {
+            if (c === 'custom' && !customImage) return null;
+            return (
+              <button 
+                key={c}
+                onClick={() => { setCharacter(c); playSound('click', 1.2); }}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${character === c ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white/60 text-slate-400 hover:bg-white'}`}
+              >
+                {c === 'custom' && customImage ? (
+                  <img src={customImage} className="w-8 h-8 rounded-full object-cover border border-white/50" />
+                ) : (
+                  chars[c].emoji
+                )}
+              </button>
+            );
+          })}
+          
+          <label className="w-12 h-12 rounded-xl bg-primary/10 text-primary border-2 border-dashed border-primary/30 flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all">
+             <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+             <Camera size={20} />
+          </label>
+          
+          {customImage && (
             <button 
-              key={c}
-              onClick={() => { setCharacter(c); playSound('click', 1.2); }}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${character === c ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white/60 text-slate-400 hover:bg-white'}`}
+              onClick={() => { setCustomImage(null); if (character === 'custom') setCharacter('cat'); }}
+              className="w-12 h-12 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center hover:bg-rose-200"
             >
-              {chars[c].emoji}
+               <Trash2 size={20} />
             </button>
-          ))}
+          )}
        </div>
 
        <div className="text-center">
@@ -2682,9 +3228,11 @@ const BobbleToy = ({ addXP }: { addXP: (n: number) => void }) => {
             animate={{ opacity: 1, y: 0 }}
             className="comfortaa text-3xl text-secondary font-black"
           >
-            {chars[character].name}
+            {isPopped ? "BOOM!" : chars[character].name}
           </motion.h2>
-          <p className="text-slate-500 font-bold text-sm">Poke or drag their head!</p>
+          <p className="text-slate-500 font-bold text-sm">
+            {isPopped ? "You poked too much!" : "Poke or drag their head!"}
+          </p>
        </div>
 
        <div className="relative h-64 flex items-end justify-center">
@@ -2701,38 +3249,91 @@ const BobbleToy = ({ addXP }: { addXP: (n: number) => void }) => {
           </div>
           
           {/* Head */}
-          <motion.div 
-            drag
-            dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-            dragElastic={0.6}
-            onDragStart={handlePoke}
-            whileTap={{ scale: 0.95 }}
-            animate={isWobbling ? {
-               rotate: [0, -10, 10, -5, 5, 0],
-               x: 0,
-               y: 0
-            } : { x: 0, y: 0, rotate: 0 }}
-            transition={{ 
-               type: "spring", 
-               stiffness: 200, 
-               damping: 12,
-               rotate: { duration: 0.5 }
-            }}
-            onClick={handlePoke}
-            className={`absolute left-1/2 bottom-24 -translate-x-1/2 w-44 h-44 ${chars[character].color} rounded-[60px] border-4 border-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center justify-center text-8xl cursor-grab active:cursor-grabbing select-none z-10`}
-          >
-             <span className="drop-shadow-lg">{chars[character].emoji}</span>
-             {/* Decorative elements */}
-             <div className="absolute bottom-12 left-8 w-8 h-4 bg-rose-400/20 rounded-full blur-[3px]" />
-             <div className="absolute bottom-12 right-8 w-8 h-4 bg-rose-400/20 rounded-full blur-[3px]" />
-             
-             {/* Shine */}
-             <div className="absolute top-6 left-10 w-12 h-6 bg-white/30 rounded-full -rotate-45 blur-[4px]" />
-          </motion.div>
+          <AnimatePresence mode="wait">
+            {!isPopped ? (
+              <motion.div 
+                key="head"
+                drag
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                dragElastic={0.6}
+                onDragStart={handlePoke}
+                whileTap={{ scale: 0.95 }}
+                animate={isWobbling ? {
+                   rotate: [0, -10, 10, -5, 5, 0],
+                   x: 0,
+                   y: 0
+                } : { x: 0, y: 0, rotate: 0 }}
+                exit={{ 
+                  scale: 3, 
+                  opacity: 0,
+                  rotate: [0, 90, 180],
+                  filter: "blur(20px)"
+                }}
+                transition={{ 
+                   type: "spring", 
+                   stiffness: 200, 
+                   damping: 12,
+                   rotate: { duration: 0.5 }
+                }}
+                onClick={handlePoke}
+                className={`absolute left-1/2 bottom-24 -translate-x-1/2 w-44 h-44 ${chars[character].color} rounded-[60px] border-4 border-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center justify-center text-8xl cursor-grab active:cursor-grabbing select-none z-10 overflow-hidden`}
+              >
+                 {character === 'custom' && customImage ? (
+                   <img src={customImage} className="w-full h-full object-cover" />
+                 ) : (
+                   <span className="drop-shadow-lg">{chars[character].emoji}</span>
+                 )}
+                 
+                 {/* Decorative elements */}
+                 <div className="absolute bottom-12 left-8 w-8 h-4 bg-rose-400/20 rounded-full blur-[3px]" />
+                 <div className="absolute bottom-12 right-8 w-8 h-4 bg-rose-400/20 rounded-full blur-[3px]" />
+                 
+                 {/* Shine */}
+                 <div className="absolute top-6 left-10 w-12 h-6 bg-white/30 rounded-full -rotate-45 blur-[4px]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="popped"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute left-1/2 bottom-24 -translate-x-1/2 flex flex-col items-center gap-4 z-20"
+              >
+                <div className="flex gap-2">
+                   {Array(8).fill(0).map((_, i) => (
+                     <motion.div 
+                       key={i}
+                       animate={{ 
+                         x: (Math.random() - 0.5) * 200,
+                         y: (Math.random() - 0.5) * 200,
+                         rotate: Math.random() * 360,
+                         opacity: 0
+                       }}
+                       transition={{ duration: 1, repeat: Infinity }}
+                       className="w-4 h-4 bg-secondary rounded-full"
+                     />
+                   ))}
+                </div>
+                <button 
+                  onClick={resetPop}
+                  className="px-6 py-2 bg-primary text-white rounded-full font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all"
+                >
+                  Repair Head
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
        </div>
 
-       <div className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-4 py-1 rounded-full">
-          Physics Engine: Active
+       <div className="mt-8 flex flex-col items-center gap-2">
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-4 py-1 rounded-full">
+             Physics Engine: Active
+          </div>
+          <div className="flex gap-1">
+             {Array(10).fill(0).map((_, i) => (
+               <div key={i} className={`h-1.5 w-4 rounded-full ${pokeCount > i * 5 ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-slate-200 opacity-30'}`} />
+             ))}
+          </div>
+          <span className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">Stress Meter</span>
        </div>
     </div>
   );

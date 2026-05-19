@@ -1,5 +1,5 @@
 {
-  "name": "Serenity Spin",
+  "name": "Bobble & Spin",
   "description": "A calming sensory toy box with tactile interactions, physics-based marbles, and satisfying pop-it grids.",
   "requestFramePermissions": ["accelerometer", "gyroscope"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
